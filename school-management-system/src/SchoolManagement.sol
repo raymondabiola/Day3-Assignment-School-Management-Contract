@@ -63,12 +63,14 @@ contract SchoolManagement {
         principal = _address;
     }
 
+    // Enter 100 or 200 or 300 or 400 for grade
     function setGradeFee(uint16 _grade, uint _fee)external onlyPrincipal{
         require(_grade == 100 || _grade == 200 || _grade == 300 || _grade == 400, "Invalid grade inputed");
         require(_fee > 0, "Fee must be more than 0");
         gradeFee[_grade] = _fee;
     }
 
+    // Enter Teacher or HOD or Management for _role, case sensitive
     function setStaffSalary(string memory _role, uint _salary) external onlyPrincipal{
     require(getHash(_role) == getHash("Teacher") || getHash(_role) == getHash("HOD") || getHash(_role) == getHash("Management"), "Invalid Role");
     require(_salary > 0, "Salary must be more than 0");
@@ -76,6 +78,7 @@ contract SchoolManagement {
     staffSalary[roleHash] = _salary;
     }
 
+    // Enter 100 or 200 or 300 or 400 for grade
     function payFee(address _address, uint16 _grade, uint _feeAmount) external {
     require(_grade == 100 || _grade == 200 || _grade == 300 || _grade == 400, "Invalid grade inputed");
       uint studentGradeFee = gradeFee[_grade];
@@ -86,6 +89,8 @@ contract SchoolManagement {
     emit StudentFeeWasPaid(_address, _grade, _feeAmount);
     }
 
+    // Enter M,F for _sex , case sensitive
+    // Enter 100 or 200 or 300 or 400 for grade
     function registerStudent(address _address, string memory _name, string memory _sex, uint8 _age, uint16 _grade) external onlyManagement{
     require(studentData[_address].isFeePaid, "Student has not paid fee");
     require(_grade == 100 || _grade == 200 || _grade == 300 || _grade == 400, "Invalid grade inputed");
@@ -103,6 +108,9 @@ contract SchoolManagement {
         return keccak256(abi.encodePacked(_text));
     }
 
+    // Enter M,F for _sex , case sensitive
+    // Enter Single or Married for _maritalStatus, case sensitive
+    // Enter Teacher or HOD or Management for _role, case sensitive
     function registerStaff(address _address, string memory _name, string memory _sex, string memory _maritalStatus, string memory _role) external onlyPrincipal{
     require(getHash(_sex) == getHash("M") || getHash(_sex) == getHash("F"), "Invalid Sex");
     require(getHash(_maritalStatus) == getHash("Single") || getHash(_maritalStatus) == getHash("Married"), "Invalid marital status");
@@ -117,6 +125,7 @@ contract SchoolManagement {
     staffData[_address].isStaff = true;
     }
 
+    // Enter 100 or 200 or 300 or 400 for grade
     function newSessionStudentDataUpdate(address _address, uint8 _age, uint16 _grade)external{
     require(_grade == 100 || _grade == 200 || _grade == 300 || _grade == 400, "Invalid grade inputed");
     studentData[_address].age = _age;
@@ -124,6 +133,7 @@ contract SchoolManagement {
     studentData[_address].isFeePaid = false;
     }
 
+    // Enter Teacher or HOD or Management for _role, case sensitive
     function payStaff(address _address, string memory _role) external onlyPrincipal{
     require(staffData[_address].isStaff, "Not a registered staff");
     require(getHash(_role) == getHash("Teacher") || getHash(_role) == getHash("HOD") || getHash(_role) == getHash("Management"), "Invalid Role");
