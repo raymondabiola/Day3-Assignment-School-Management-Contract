@@ -29,6 +29,7 @@ contract SchoolManagement {
         bytes32 sex;
         bytes32 maritalStatus;
         bytes32 role;
+        bool isStaff;
         uint paymentTimestamp;
     }
     mapping(address => Staff) private staffData;
@@ -113,6 +114,7 @@ contract SchoolManagement {
     staffData[_address].sex = getHash(_sex);
     staffData[_address].maritalStatus = getHash(_maritalStatus);
     staffData[_address].role = getHash(_role);
+    staffData[_address].isStaff = true;
     }
 
     function newSessionStudentDataUpdate(address _address, uint8 _age, uint16 _grade)external{
@@ -123,8 +125,10 @@ contract SchoolManagement {
     }
 
     function payStaff(address _address, string memory _role) external onlyPrincipal{
+    require(staffData[_address].isStaff, "Not a registered staff");
     require(getHash(_role) == getHash("Teacher") || getHash(_role) == getHash("HOD") || getHash(_role) == getHash("Management"), "Invalid Role");
     bytes32 roleHash = getHash(_role);
+    require(staffData[_address].role == roleHash, "Role mismatch");
     uint salary = staffSalary[roleHash];
     require(salary <= erc20Token.balanceOf(address(this)), "Insufficient contract balance");
     erc20Token.transfer(_address, salary);
