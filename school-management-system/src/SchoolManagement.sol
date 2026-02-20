@@ -10,39 +10,56 @@ contract SchoolManagement {
     address public vicePrincipal;
     uint32 private studentRegNo;
     uint32 private staffRegNo;
+    uint32 private month;
 
-    struct Student{
-        uint32 regNo;
-        string name;
-        bytes32 sex;
-        uint8 age;
-        uint16 grade;
+    struct StudentPaymentData{
+        uint feeAmount;
         bool isFeePaid;
-        bool isRegistered;
         uint paymentTimestamp;
     }
-    mapping(address => Student) private studentData;
+    mapping(address => mapping(uint => StudentPaymentData)) private studentGradePaymentData;
 
-    struct Staff{
+    struct StudentBio{
         uint32 regNo;
         string name;
-        bytes32 sex;
-        bytes32 maritalStatus;
-        bytes32 role;
-        bool isStaff;
+        string gender;
+        uint8 age;
+        bool isRegistered;
+    }
+    mapping(address => StudentBio) private studentBio;
+
+    struct StaffSalaryPaymentData{
+        bool isSalaryPaid;
+        uint salaryAmountPaid;
         uint paymentTimestamp;
     }
-    mapping(address => Staff) private staffData;
+    mapping(address => mapping(uint => StaffSalaryPaymentData)) private staffMonthlySalaryPayment;
+
+    struct StaffBio{
+        uint32 regNo;
+        string name;
+        string gender;
+        string maritalStatus;
+        string role;
+        bool isStaff;
+    }
+    mapping(address => StaffBio) staffBio;
 
     mapping(uint16 => uint) gradeFee;
     mapping(bytes32 => uint) staffSalary;
-
+    event StudentWasRegistered(string indexed name, address indexed _address, string gender, uint age, uint grade);
+    event StaffWasRegistered(string indexed name, address indexed _address, string gender, string maritalStatus, string role);
     event StudentFeeWasPaid(address indexed studentAddress,uint16 indexed grade, uint indexed feePaid);
-    event StaffSalaryWasPaid(address indexed staffAddress, string indexed role, uint indexed salary);
+    event StaffSalaryWasPaid(string indexed name, address indexed staffAddress, string indexed role, uint salary);
 
-    constructor(address _erc20TokenAddress){
+    constructor(address _erc20TokenAddress, uint _grade100Fee, uint _grade200Fee, uint _grade300Fee, uint _grade400Fee){
         erc20Token = ERC20Token(_erc20TokenAddress);
         principal = msg.sender;
+        gradeFee[100] = _grade100Fee;
+        gradeFee[200] = _grade200Fee;
+        gradeFee[300] = _grade300Fee;
+        gradeFee[400] = _grade400Fee;
+        month = 1;
     }
 
     modifier onlyPrincipal(){
@@ -64,94 +81,139 @@ contract SchoolManagement {
     }
 
     // Enter 100 or 200 or 300 or 400 for grade
-    function setGradeFee(uint16 _grade, uint _fee)external onlyPrincipal{
+    function updateGradeFee(uint16 _grade, uint _fee)external onlyPrincipal{
         require(_grade == 100 || _grade == 200 || _grade == 300 || _grade == 400, "Invalid grade inputed");
         require(_fee > 0, "Fee must be more than 0");
         gradeFee[_grade] = _fee;
     }
 
     // Enter Teacher or HOD or Management for _role, case sensitive
-    function setStaffSalary(string memory _role, uint _salary) external onlyPrincipal{
-    require(getHash(_role) == getHash("Teacher") || getHash(_role) == getHash("HOD") || getHash(_role) == getHash("Management"), "Invalid Role");
-    require(_salary > 0, "Salary must be more than 0");
+    function updateStaffSalary(string memory _role, uint _salary) external onlyPrincipal{
     bytes32 roleHash = getHash(_role);
+    require(roleHash == getHash("Teacher") || roleHash == getHash("HOD") || roleHash == getHash("Management"), "Invalid Role");
+    require(_salary > 0, "Salary must be more than 0");
     staffSalary[roleHash] = _salary;
     }
 
     // Enter 100 or 200 or 300 or 400 for grade
     function payFee(address _address, uint16 _grade, uint _feeAmount) external {
+    require(_address != address(0), "Invalid Address");
+    require(_address.code.length == 0, "Contract address inputed");
     require(_grade == 100 || _grade == 200 || _grade == 300 || _grade == 400, "Invalid grade inputed");
-      uint studentGradeFee = gradeFee[_grade];
-      require(_feeAmount == studentGradeFee, "Invalid fee Amount");
+    uint studentGradeFee = gradeFee[_grade];
+    require(_feeAmount == studentGradeFee, "Invalid fee Amount");
+
     erc20Token.transferFrom(_address, address(this), _feeAmount);
-    studentData[_address].isFeePaid = true;
-    studentData[_address].paymentTimestamp = block.timestamp;
+    studentGradePaymentData[_address][_grade].isFeePaid = true;
+    studentGradePaymentData[_address][_grade].feeAmount = _feeAmount;
+    studentGradePaymentData[_address][_grade].paymentTimestamp = block.timestamp;
+
     emit StudentFeeWasPaid(_address, _grade, _feeAmount);
     }
 
-    // Enter M,F for _sex , case sensitive
-    // Enter 100 or 200 or 300 or 400 for grade
-    function registerStudent(address _address, string memory _name, string memory _sex, uint8 _age, uint16 _grade) external onlyManagement{
-    require(studentData[_address].isFeePaid, "Student has not paid fee");
-    require(_grade == 100 || _grade == 200 || _grade == 300 || _grade == 400, "Invalid grade inputed");
+    // Enter M or F for _gender, case sensitive
+    // Enter 100 for grade
+    function registerStudent(string memory _name, address _address, string memory _gender, uint8 _age, uint16 _grade) external onlyManagement{
+    require(_grade == 100, "Student is not a fresher");
+    require(studentGradePaymentData[_address][100].isFeePaid, "Student has not paid grade 100 fee");
+    require(bytes(_name).length > 0, "Cannot input empty string");
+    require(_address != address(0), "Invalid Address");
+    require(_address.code.length == 0, "Contract address inputed");
+    require(!studentBio[_address].isRegistered, "Already a student");
+    bytes32 genderHash = getHash(_gender);
+    require(genderHash == getHash("M") || genderHash == getHash("F"), "Invalid gender inputed");
+    require(_age > 0, "Invalid age input");
 
     studentRegNo = studentRegNo + 1;
-    studentData[_address].regNo = studentRegNo;
-    studentData[_address].name = _name;
-    studentData[_address].sex = getHash(_sex);
-    studentData[_address].age = _age;
-    studentData[_address].grade = _grade;
-    studentData[_address].isRegistered = true;
+    studentBio[_address].regNo = studentRegNo;
+    studentBio[_address].name = _name;
+    studentBio[_address].gender = _gender;
+    studentBio[_address].age = _age;
+    studentBio[_address].isRegistered = true;
+
+    emit StudentWasRegistered(_name, _address, _gender, _age, _grade);
     }
 
+    // Internal helper function
     function getHash(string memory _text)pure internal returns(bytes32){
         return keccak256(abi.encodePacked(_text));
     }
 
-    // Enter M,F for _sex , case sensitive
+    // Enter M,F for _gender , case sensitive
     // Enter Single or Married for _maritalStatus, case sensitive
     // Enter Teacher or HOD or Management for _role, case sensitive
-    function registerStaff(address _address, string memory _name, string memory _sex, string memory _maritalStatus, string memory _role) external onlyPrincipal{
-    require(getHash(_sex) == getHash("M") || getHash(_sex) == getHash("F"), "Invalid Sex");
-    require(getHash(_maritalStatus) == getHash("Single") || getHash(_maritalStatus) == getHash("Married"), "Invalid marital status");
-    require(getHash(_role) == getHash("Teacher") || getHash(_role) == getHash("HOD") || getHash(_role) == getHash("Management"), "Invalid Role");
+    function registerStaff(string memory _name, address _address, string memory _gender, string memory _maritalStatus, string memory _role) external onlyPrincipal{
+    require(_address != address(0), "Invalid Address");
+    require(!staffBio[_address].isStaff, "Already a staff");
+    require(_address.code.length == 0, "Contract address inputed");
+    require(bytes(_name).length > 0, "Cannot input empty string");
+    bytes32 genderHash = getHash(_gender);
+    bytes32 roleHash = getHash(_role);
+    bytes32 maritalStatusHash = getHash(_maritalStatus);
+    require(genderHash == getHash("M") || genderHash == getHash("F"), "Invalid gender inputed");
+    require(maritalStatusHash == getHash("Single") || maritalStatusHash == getHash("Married"), "Invalid marital status");
+    require(roleHash == getHash("Teacher") || roleHash == getHash("HOD") || roleHash == getHash("Management"), "Invalid Role");
     
     staffRegNo = staffRegNo + 1;
-    staffData[_address].regNo = staffRegNo;
-    staffData[_address].name = _name;
-    staffData[_address].sex = getHash(_sex);
-    staffData[_address].maritalStatus = getHash(_maritalStatus);
-    staffData[_address].role = getHash(_role);
-    staffData[_address].isStaff = true;
+    staffBio[_address].regNo = staffRegNo;
+    staffBio[_address].name = _name;
+    staffBio[_address].gender = (_gender);
+    staffBio[_address].maritalStatus = _maritalStatus;
+    staffBio[_address].role = _role;
+    staffBio[_address].isStaff = true;
+
+    emit StaffWasRegistered(_name, _address, _gender, _maritalStatus, _role);
     }
 
-    // Enter 100 or 200 or 300 or 400 for grade
-    function newSessionStudentDataUpdate(address _address, uint8 _age, uint16 _grade)external{
-    require(_grade == 100 || _grade == 200 || _grade == 300 || _grade == 400, "Invalid grade inputed");
-    studentData[_address].age = _age;
-    studentData[_address].grade = _grade;
-    studentData[_address].isFeePaid = false;
+    // External function to update Student Age
+    function updateStudentAge(address _address, uint8 _age)external onlyManagement{
+    require(studentBio[_address].isRegistered, "Not a student");
+    require(_age > 0, "Invalid age input");
+    studentBio[_address].age = _age;
     }
 
     // Enter Teacher or HOD or Management for _role, case sensitive
     function payStaff(address _address, string memory _role) external onlyPrincipal{
-    require(staffData[_address].isStaff, "Not a registered staff");
-    require(getHash(_role) == getHash("Teacher") || getHash(_role) == getHash("HOD") || getHash(_role) == getHash("Management"), "Invalid Role");
+    require(staffBio[_address].isStaff, "Not a registered staff");
+    require(!staffMonthlySalaryPayment[_address][month].isSalaryPaid, "Salary Already paid for current month");
     bytes32 roleHash = getHash(_role);
-    require(staffData[_address].role == roleHash, "Role mismatch");
+    require(roleHash == getHash("Teacher") || roleHash == getHash("HOD") || roleHash == getHash("Management"), "Inputed role does not exist");
+    require(getHash(staffBio[_address].role) == roleHash, "Wrong role inputed for staff");
+
+    string memory staffName = staffBio[_address].name;
     uint salary = staffSalary[roleHash];
     require(salary <= erc20Token.balanceOf(address(this)), "Insufficient contract balance");
+
     erc20Token.transfer(_address, salary);
-    staffData[_address].paymentTimestamp = block.timestamp;
-    emit StaffSalaryWasPaid(_address, _role, salary);
+    staffMonthlySalaryPayment[_address][month].isSalaryPaid = true;
+    staffMonthlySalaryPayment[_address][month].salaryAmountPaid = salary;
+    staffMonthlySalaryPayment[_address][month].paymentTimestamp = block.timestamp;
+
+    emit StaffSalaryWasPaid(staffName, _address, _role, salary);
+    }
+
+    function setNewMonth(uint32 _month)external onlyPrincipal{
+        month = _month;
     }
 
     // View Functions
-    function getStudentData(address _address) external view returns(Student memory){
-        return studentData[_address];
+    function getStudentBio(address _address) external view returns(StudentBio memory){
+        return studentBio[_address];
     }
 
-    function getStaffData(address _address) external view returns(Staff memory){
-        return staffData[_address];
+    function getStudentYearlyPaymentData(address _address, uint _grade)external view returns(StudentPaymentData memory){
+        return studentGradePaymentData[_address][_grade];
+    }
+
+    function getStaffBio(address _address) external view returns(StaffBio memory){
+        return staffBio[_address];
+    }
+
+    function getStaffMonthlyPaymentData(address _address, uint _month)external view returns(StaffSalaryPaymentData memory){
+        return staffMonthlySalaryPayment[_address][_month];
+    }
+
+    function getCurrentMonth()external view returns(uint32) {
+        return month;
     }
 }
