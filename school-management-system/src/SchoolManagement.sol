@@ -43,10 +43,11 @@ contract SchoolManagement {
         string role;
         bool isStaff;
     }
-    mapping(address => StaffBio) staffBio;
+    mapping(address => StaffBio) private staffBio;
 
-    mapping(uint16 => uint) gradeFee;
-    mapping(bytes32 => uint) staffSalary;
+    mapping(uint16 => uint) private gradeFee;
+    mapping(bytes32 => uint) private staffSalary;
+    
     event StudentWasRegistered(string indexed name, address indexed _address, string gender, uint age, uint grade);
     event StaffWasRegistered(string indexed name, address indexed _address, string gender, string maritalStatus, string role);
     event StudentFeeWasPaid(address indexed studentAddress,uint16 indexed grade, uint indexed feePaid);
@@ -184,7 +185,7 @@ contract SchoolManagement {
 
     string memory staffName = staffBio[_address].name;
     uint salary = staffSalary[roleHash];
-    require(salary <= erc20Token.balanceOf(address(this)), "Insufficient contract balance");
+    require(salary <= erc20Token.balanceOf(address(this)), "Insufficient school balance");
 
     erc20Token.transfer(_address, salary);
     staffMonthlySalaryPayment[_address][month].isSalaryPaid = true;
@@ -217,5 +218,18 @@ contract SchoolManagement {
 
     function getCurrentMonth()external view returns(uint32) {
         return month;
+    }
+
+    function getGradeFee(uint16 _grade)external view returns(uint){
+        return gradeFee[_grade];
+    }
+
+    function getStaffSalary(string memory _role) external view returns(uint){
+        bytes32 roleHash = getHash(_role);
+        return staffSalary[roleHash];
+    }
+
+    function getSchoolBalance()external view returns(uint){
+        return erc20Token.balanceOf(address(this));
     }
 }
