@@ -17,6 +17,8 @@ contract SchoolManagement {
         bool isFeePaid;
         uint paymentTimestamp;
     }
+
+    //Mapping of the student address to a mapping of the year's(grade) to get the student payment details for that year
     mapping(address => mapping(uint => StudentPaymentData)) private studentGradePaymentData;
 
     struct StudentBio{
@@ -26,6 +28,8 @@ contract SchoolManagement {
         uint8 age;
         bool isRegistered;
     }
+
+    // Mapping of student address to get their Bio information from StudentBio struct
     mapping(address => StudentBio) private studentBio;
 
     struct StaffSalaryPaymentData{
@@ -33,6 +37,8 @@ contract SchoolManagement {
         uint salaryAmountPaid;
         uint paymentTimestamp;
     }
+
+    // Mapping of staff address to mapping of their monthly salaries
     mapping(address => mapping(uint => StaffSalaryPaymentData)) private staffMonthlySalaryPayment;
 
     struct StaffBio{
@@ -43,9 +49,14 @@ contract SchoolManagement {
         string role;
         bool isStaff;
     }
+
+    // Mapping of staff address to get their Bio
     mapping(address => StaffBio) private staffBio;
 
+    // Mapping of gradeFee of all eligible grades to get the school fee for that grade
     mapping(uint16 => uint) private gradeFee;
+
+    // Mapping of the hash of staff roles to get the salary for that role
     mapping(bytes32 => uint) private staffSalary;
     
     event StudentWasRegistered(string indexed name, address indexed _address, string gender, uint age, uint grade);
