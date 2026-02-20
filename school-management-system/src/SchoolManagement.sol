@@ -68,7 +68,7 @@ contract SchoolManagement {
     }
 
     modifier onlyManagement(){
-        require(msg.sender == principal || msg.sender == vicePrincipal, "You are not the vice principal");
+        require(msg.sender == principal || msg.sender == vicePrincipal, "Only management can call this function");
         _;
     }
 
@@ -118,6 +118,7 @@ contract SchoolManagement {
     require(studentGradePaymentData[_address][100].isFeePaid, "Student has not paid grade 100 fee");
     require(bytes(_name).length > 0, "Cannot input empty string");
     require(_address != address(0), "Invalid Address");
+    require(!staffBio[_address].isStaff, "You cannot register a staff as student");
     require(_address.code.length == 0, "Contract address inputed");
     require(!studentBio[_address].isRegistered, "Already a student");
     bytes32 genderHash = getHash(_gender);
@@ -145,6 +146,7 @@ contract SchoolManagement {
     function registerStaff(string memory _name, address _address, string memory _gender, string memory _maritalStatus, string memory _role) external onlyPrincipal{
     require(_address != address(0), "Invalid Address");
     require(!staffBio[_address].isStaff, "Already a staff");
+    require(!studentBio[_address].isRegistered, "You cannot register a student as staff");
     require(_address.code.length == 0, "Contract address inputed");
     require(bytes(_name).length > 0, "Cannot input empty string");
     bytes32 genderHash = getHash(_gender);
