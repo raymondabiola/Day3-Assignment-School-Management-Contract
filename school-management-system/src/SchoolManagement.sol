@@ -97,7 +97,7 @@ contract SchoolManagement {
     }
 
     // Enter 100 or 200 or 300 or 400 for grade
-    function payFee(address _address, uint16 _grade, uint _feeAmount) external {
+    function payStudentFee(address _address, uint16 _grade, uint _feeAmount) external {
     require(_address != address(0), "Invalid Address");
     require(_address.code.length == 0, "Contract address inputed");
     require(_grade == 100 || _grade == 200 || _grade == 300 || _grade == 400, "Invalid grade inputed");
