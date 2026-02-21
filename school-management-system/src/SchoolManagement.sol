@@ -27,10 +27,13 @@ contract SchoolManagement {
         string gender;
         uint8 age;
         bool isRegistered;
+        bool isSuspended;
     }
 
     // Mapping of student address to get their Bio information from StudentBio struct
     mapping(address => StudentBio) private studentBio;
+
+    address[] private studentsAddress;
 
     struct StaffSalaryPaymentData{
         bool isSalaryPaid;
@@ -48,6 +51,7 @@ contract SchoolManagement {
         string maritalStatus;
         string role;
         bool isStaff;
+        bool isSuspended;
     }
 
     // Mapping of staff address to get their Bio
@@ -107,8 +111,16 @@ contract SchoolManagement {
     staffSalary[roleHash] = _salary;
     }
 
+    function checkReturningStudent(address _address, uint _grade) internal view {
+        if(_grade == 200 || _grade == 300 || _grade == 400){
+            require(studentBio[_address].isRegistered, "You are not a returning student");
+        }
+    }
+
     // Enter 100 or 200 or 300 or 400 for grade
     function payStudentFee(address _address, uint16 _grade, uint _feeAmount) external {
+    require(!studentBio[_address].isSuspended, "Student is suspended");
+    checkReturningStudent(_address, _grade);
     require(_address != address(0), "Invalid Address");
     require(_address.code.length == 0, "Contract address inputed");
     require(_grade == 100 || _grade == 200 || _grade == 300 || _grade == 400, "Invalid grade inputed");
@@ -127,6 +139,7 @@ contract SchoolManagement {
     // Enter 100 for grade
     function registerStudent(string memory _name, address _address, string memory _gender, uint8 _age, uint16 _grade) external onlyManagement{
     require(_grade == 100, "Student is not a fresher");
+    require(!studentBio[_address].isSuspended, "Student is suspended");
     require(studentGradePaymentData[_address][100].isFeePaid, "Student has not paid grade 100 fee");
     require(bytes(_name).length > 0, "Cannot input empty string");
     require(_address != address(0), "Invalid Address");
@@ -144,6 +157,8 @@ contract SchoolManagement {
     studentBio[_address].age = _age;
     studentBio[_address].isRegistered = true;
 
+    studentsAddress.push(_address);
+
     emit StudentWasRegistered(_name, _address, _gender, _age, _grade);
     }
 
@@ -158,6 +173,7 @@ contract SchoolManagement {
     function registerStaff(string memory _name, address _address, string memory _gender, string memory _maritalStatus, string memory _role) external onlyPrincipal{
     require(_address != address(0), "Invalid Address");
     require(!staffBio[_address].isStaff, "Already a staff");
+    require(!staffBio[_address].isSuspended, "Staff was suspended");
     require(!studentBio[_address].isRegistered, "You cannot register a student as staff");
     require(_address.code.length == 0, "Contract address inputed");
     require(bytes(_name).length > 0, "Cannot input empty string");
@@ -188,6 +204,7 @@ contract SchoolManagement {
 
     // Enter Teacher or HOD or Management for _role, case sensitive
     function payStaff(address _address, string memory _role) external onlyPrincipal{
+    require(!staffBio[_address].isSuspended, "Staff was suspended");
     require(staffBio[_address].isStaff, "Not a registered staff");
     require(!staffMonthlySalaryPayment[_address][month].isSalaryPaid, "Salary Already paid for current month");
     bytes32 roleHash = getHash(_role);
@@ -206,6 +223,30 @@ contract SchoolManagement {
     emit StaffSalaryWasPaid(staffName, _address, _role, salary);
     }
 
+    function suspendStudent(address _address) external onlyManagement{
+    require(_address != address(0), "Invalid address inputed");
+    require(studentBio[_address].isRegistered, "Student is not registered");
+    studentBio[_address].isSuspended = true;
+    for(uint i = 0; i < studentsAddress.length; i++){
+        if(studentsAddress[i] == _address){
+            studentsAddress[i] = studentsAddress[studentsAddress.length -1 ];
+            studentsAddress.pop();
+        }
+    }
+
+    delete studentBio[_address].regNo;
+    delete  studentBio[_address].name;
+    delete studentBio[_address].gender;
+    delete studentBio[_address].age;
+    delete studentBio[_address].isRegistered;
+    }
+
+    function suspendStaff(address _address) external onlyPrincipal{
+    require(_address != address(0), "Invalid address inputed");
+    require(staffBio[_address].isStaff, "Staff is not registered");
+    staffBio[_address].isSuspended = true;
+    }
+
     function setNewMonth(uint32 _month)external onlyPrincipal{
         month = _month;
     }
@@ -217,6 +258,10 @@ contract SchoolManagement {
 
     function getStudentYearlyPaymentData(address _address, uint _grade)external view returns(StudentPaymentData memory){
         return studentGradePaymentData[_address][_grade];
+    }
+
+    function getAllStudentsAddress() external view returns(address[] memory){
+        return studentsAddress;
     }
 
     function getStaffBio(address _address) external view returns(StaffBio memory){

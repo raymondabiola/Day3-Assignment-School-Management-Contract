@@ -20,10 +20,13 @@ error InvalidAddress();
 error InvalidAmount();
 error InsufficientAllowance();
 
-constructor(string memory name_, string memory symbol_, uint8 decimals_) {
+constructor(string memory name_, string memory symbol_, uint8 decimals_, uint _initialSupply) {
         _name = name_;
         _symbol = symbol_;
         _decimals = decimals_;
+        balances[msg.sender] = _initialSupply;
+        _totalSupply += _initialSupply;
+
     }
 
 function name() public view returns(string memory){
